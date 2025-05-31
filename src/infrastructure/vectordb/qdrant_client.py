@@ -4,7 +4,7 @@ Qdrant 벡터 데이터베이스 클라이언트
 
 from typing import List, Dict, Any, Optional, Union
 import asyncio
-from qdrant_client import QdrantClient
+from qdrant_client import QdrantClient as QdrantClientBase
 from qdrant_client.http import models
 from qdrant_client.http.models import (
     Distance, VectorParams, CreateCollection, PointStruct,
@@ -19,12 +19,12 @@ from src.core.exceptions import VectorStoreConnectionError, VectorStoreOperation
 logger = get_logger(__name__)
 
 
-class QdrantVectorClient(LoggerMixin):
-    """Qdrant 벡터 데이터베이스 클라이언트"""
+class QdrantClient(LoggerMixin):
+    """Qdrant 벡터 데이터베이스 클라이언트 래퍼"""
     
     def __init__(self, settings: Settings):
         self.settings = settings
-        self._client: Optional[QdrantClient] = None
+        self._client: Optional[QdrantClientBase] = None
         self._is_connected = False
     
     async def connect(self) -> None:
@@ -32,13 +32,13 @@ class QdrantVectorClient(LoggerMixin):
         try:
             # Qdrant 클라이언트 생성
             if self.settings.qdrant_api_key:
-                self._client = QdrantClient(
+                self._client = QdrantClientBase(
                     url=self.settings.qdrant_url,
                     api_key=self.settings.qdrant_api_key,
                     timeout=30
                 )
             else:
-                self._client = QdrantClient(
+                self._client = QdrantClientBase(
                     url=self.settings.qdrant_url,
                     timeout=30
                 )
@@ -70,7 +70,7 @@ class QdrantVectorClient(LoggerMixin):
                 self.logger.info("Qdrant 연결 해제 완료")
     
     @property
-    def client(self) -> QdrantClient:
+    def client(self) -> QdrantClientBase:
         """클라이언트 인스턴스 반환"""
         if not self._is_connected or not self._client:
             raise VectorStoreConnectionError("Qdrant에 연결되지 않음")
@@ -290,7 +290,7 @@ class QdrantManager:
     """Qdrant 연결 관리자 (싱글톤)"""
     
     _instance: Optional['QdrantManager'] = None
-    _client: Optional[QdrantVectorClient] = None
+    _client: Optional[QdrantClient] = None
     
     def __new__(cls) -> 'QdrantManager':
         if cls._instance is None:
@@ -300,7 +300,7 @@ class QdrantManager:
     def initialize(self, settings: Settings) -> None:
         """Qdrant 클라이언트 초기화"""
         if self._client is None:
-            self._client = QdrantVectorClient(settings)
+            self._client = QdrantClient(settings)
     
     async def connect(self) -> None:
         """연결 시작"""
@@ -313,11 +313,83 @@ class QdrantManager:
             await self._client.disconnect()
     
     @property
-    def client(self) -> QdrantVectorClient:
+    def client(self) -> QdrantClient:
         """클라이언트 인스턴스 반환"""
         if self._client is None:
             raise VectorStoreConnectionError("Qdrant 클라이언트가 초기화되지 않음")
         return self._client
+
+
+class QdrantVectorClient:
+    """Qdrant 벡터 클라이언트 (검색 모듈용)"""
+    
+    def __init__(self, client: QdrantClient):
+        self.client = client
+    
+    async def search_similar_vectors(
+        self,
+        collection_name: str,
+        query_vector: List[float],
+        limit: int = 10,
+        score_threshold: Optional[float] = None,
+        metadata_filter: Optional[Dict[str, Any]] = None
+    ) -> List[Dict[str, Any]]:
+        """유사 벡터 검색"""
+        filter_conditions = None
+        if metadata_filter:
+            conditions = []
+            for key, value in metadata_filter.items():
+                conditions.append(
+                    FieldCondition(
+                        key=key,
+                        match=MatchValue(value=value)
+                    )
+                )
+            filter_conditions = Filter(must=conditions)
+        
+        return await self.client.search_points(
+            collection_name=collection_name,
+            query_vector=query_vector,
+            limit=limit,
+            score_threshold=score_threshold,
+            filter_conditions=filter_conditions
+        )
+    
+    async def add_vectors(
+        self,
+        collection_name: str,
+        vectors: List[Dict[str, Any]]
+    ) -> bool:
+        """벡터 추가"""
+        points = []
+        for vector_data in vectors:
+            points.append(
+                create_point_struct(
+                    point_id=vector_data["id"],
+                    vector=vector_data["vector"],
+                    payload=vector_data.get("metadata", {})
+                )
+            )
+        
+        return await self.client.upsert_points(
+            collection_name=collection_name,
+            points=points
+        )
+    
+    async def delete_vectors(
+        self,
+        collection_name: str,
+        vector_ids: List[Union[str, int]]
+    ) -> bool:
+        """벡터 삭제"""
+        return await self.client.delete_points(
+            collection_name=collection_name,
+            point_ids=vector_ids
+        )
+    
+    async def get_collection_stats(self, collection_name: str) -> Dict[str, Any]:
+        """컬렉션 통계 조회"""
+        return await self.client.get_collection_info(collection_name)
 
 
 # 전역 매니저 인스턴스
@@ -353,7 +425,7 @@ async def qdrant_health_check() -> Dict[str, Any]:
 
 
 # 의존성 주입용 함수들
-async def get_qdrant_client() -> QdrantVectorClient:
+async def get_qdrant_client() -> QdrantClient:
     """Qdrant 클라이언트 반환 (의존성 주입용)"""
     return qdrant_manager.client
 

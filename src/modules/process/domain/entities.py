@@ -341,6 +341,65 @@ class TextChunk:
 
 
 @dataclass
+class EmbeddingResult:
+    """임베딩 결과 엔티티"""
+    text: str                                   # 원본 텍스트
+    vector: List[float]                         # 임베딩 벡터
+    model: str                                  # 사용된 모델명
+    dimensions: int                             # 벡터 차원 수
+    metadata: Dict[str, Any] = field(default_factory=dict)  # 추가 메타데이터
+    
+    @classmethod
+    def create(
+        cls,
+        text: str,
+        vector: List[float],
+        model: str,
+        metadata: Optional[Dict[str, Any]] = None
+    ) -> "EmbeddingResult":
+        """새 임베딩 결과 생성"""
+        return cls(
+            text=text,
+            vector=vector,
+            model=model,
+            dimensions=len(vector),
+            metadata=metadata or {}
+        )
+    
+    def get_vector_norm(self) -> float:
+        """벡터 노름 계산"""
+        return sum(x * x for x in self.vector) ** 0.5
+    
+    def normalize_vector(self) -> List[float]:
+        """벡터 정규화"""
+        norm = self.get_vector_norm()
+        if norm == 0:
+            return self.vector
+        return [x / norm for x in self.vector]
+    
+    def to_dict(self) -> Dict[str, Any]:
+        """딕셔너리로 변환"""
+        return {
+            "text": self.text,
+            "vector": self.vector,
+            "model": self.model,
+            "dimensions": self.dimensions,
+            "metadata": self.metadata
+        }
+    
+    @classmethod
+    def from_dict(cls, data: Dict[str, Any]) -> "EmbeddingResult":
+        """딕셔너리에서 생성"""
+        return cls(
+            text=data["text"],
+            vector=data["vector"],
+            model=data["model"],
+            dimensions=data["dimensions"],
+            metadata=data.get("metadata", {})
+        )
+
+
+@dataclass
 class ProcessingResult:
     """처리 결과 엔티티"""
     id: UUID

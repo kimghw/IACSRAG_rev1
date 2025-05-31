@@ -86,6 +86,10 @@ class DependencyContainer:
     def _create_instance(self, cls: Type[T]) -> T:
         """의존성 주입으로 인스턴스 생성"""
         try:
+            # 추상 클래스인지 확인
+            if inspect.isabstract(cls):
+                raise ValueError(f"Cannot instantiate abstract class: {cls.__name__}")
+            
             # 생성자 시그니처 분석
             signature = inspect.signature(cls.__init__)
             type_hints = get_type_hints(cls.__init__)
@@ -106,6 +110,11 @@ class DependencyContainer:
                     # 기본 타입들은 주입하지 않음
                     if param_type in (str, int, float, bool, list, dict, tuple, set):
                         logger.warning(f"Skipping injection for basic type '{param_type.__name__}' in parameter '{param_name}' of {cls.__name__}")
+                        continue
+                    
+                    # 추상 클래스인 경우 건너뛰기
+                    if inspect.isabstract(param_type):
+                        logger.warning(f"Skipping injection for abstract class '{param_type.__name__}' in parameter '{param_name}' of {cls.__name__}")
                         continue
                     
                     try:
@@ -353,8 +362,8 @@ def get_qdrant_client():
 
 def get_kafka_client():
     """Kafka Client 의존성 반환"""
-    from src.infrastructure.messaging.kafka_client import KafkaClient
-    return inject(KafkaClient)
+    from src.infrastructure.messaging.kafka_client import KafkaManager
+    return inject(KafkaManager)
 
 
 def get_monitor_service():
@@ -373,3 +382,127 @@ def get_vector_db():
     """Vector Database 의존성 반환"""
     from src.infrastructure.vectordb.qdrant_client import QdrantClient
     return inject(QdrantClient)
+
+
+def get_motor_database():
+    """Motor Database 의존성 반환"""
+    from motor.motor_asyncio import AsyncIOMotorDatabase
+    # FastAPI 앱 상태에서 데이터베이스 가져오기
+    import inspect
+    
+    # 현재 실행 중인 프레임에서 app 찾기
+    frame = inspect.currentframe()
+    while frame:
+        if 'app' in frame.f_locals:
+            app = frame.f_locals['app']
+            if hasattr(app, 'state') and hasattr(app.state, 'db'):
+                return app.state.db
+        frame = frame.f_back
+    
+    # 앱을 찾을 수 없는 경우 Mock 반환 (테스트용)
+    from unittest.mock import Mock, MagicMock
+    mock_db = MagicMock(spec=AsyncIOMotorDatabase)
+    # 모든 컬렉션을 Mock으로 설정
+    mock_db.metrics = MagicMock()
+    mock_db.alerts = MagicMock()
+    mock_db.alert_rules = MagicMock()
+    mock_db.documents = MagicMock()
+    mock_db.chunks = MagicMock()
+    mock_db.processing_jobs = MagicMock()
+    mock_db.processing_statistics = MagicMock()
+    mock_db.system_overview = MagicMock()
+    return mock_db
+
+
+def setup_dependencies():
+    """의존성 설정"""
+    from src.core.config import get_settings
+    from src.infrastructure.database.mongodb import MongoDBClient
+    from src.infrastructure.vectordb.qdrant_client import QdrantClient
+    from src.infrastructure.messaging.kafka_client import KafkaManager
+    
+    # 기본 인프라 등록
+    _container.register_factory(get_settings, lambda: get_settings())
+    _container.register_factory(MongoDBClient, lambda: MongoDBClient(get_settings()))
+    _container.register_factory(QdrantClient, lambda: QdrantClient(get_settings()))
+    _container.register_factory(KafkaManager, lambda: KafkaManager())
+    
+    # Monitor 모듈 의존성 등록
+    from src.modules.monitor.infrastructure.repositories.mongodb_metric_repository import MongoDBMetricRepository
+    from src.modules.monitor.infrastructure.repositories.mongodb_alert_repository import MongoDBAlertRepository
+    from src.modules.monitor.infrastructure.adapters.system_health_check_adapter import SystemHealthCheckAdapter
+    from src.modules.monitor.infrastructure.adapters.email_notification_adapter import EmailNotificationAdapter
+    from src.modules.monitor.application.ports.metric_repository import MetricRepositoryPort
+    from src.modules.monitor.application.ports.alert_repository import AlertRepositoryPort
+    from src.modules.monitor.application.ports.health_check_port import HealthCheckPort
+    from src.modules.monitor.application.ports.notification_port import NotificationPort
+    from src.modules.monitor.application.services.monitor_service import MonitorService
+    
+    # Repository 구현체 등록
+    _container.register_factory(MetricRepositoryPort, lambda: MongoDBMetricRepository(get_motor_database()))
+    _container.register_factory(AlertRepositoryPort, lambda: MongoDBAlertRepository(get_motor_database()))
+    
+    # Adapter 구현체 등록
+    _container.register_factory(HealthCheckPort, lambda: SystemHealthCheckAdapter())
+    _container.register_factory(NotificationPort, lambda: EmailNotificationAdapter(get_settings()))
+    
+    # MonitorService 등록
+    _container.register_factory(MonitorService, lambda: MonitorService(
+        metric_repository=inject(MetricRepositoryPort),
+        alert_repository=inject(AlertRepositoryPort),
+        health_check_service=inject(HealthCheckPort),
+        notification_service=inject(NotificationPort)
+    ))
+    
+    # Search 모듈 의존성 등록
+    from src.modules.search.infrastructure.vector_db import VectorDatabase
+    from src.modules.search.application.use_cases.search_documents import SearchDocumentsUseCase
+    from src.modules.search.application.use_cases.generate_answer import GenerateAnswerUseCase
+    from src.modules.search.application.ports.vector_search_port import VectorSearchPort
+    from src.modules.search.application.ports.llm_port import LLMPort
+    
+    # VectorDatabase 등록
+    _container.register_factory(VectorDatabase, lambda: VectorDatabase(inject(QdrantClient)))
+    _container.register_factory(VectorSearchPort, lambda: inject(VectorDatabase))
+    
+    # Mock LLM Port 등록 (테스트용)
+    from unittest.mock import Mock
+    mock_llm = Mock(spec=LLMPort)
+    mock_llm.generate_answer.return_value = "This is a mock answer"
+    _container.register_instance(LLMPort, mock_llm)
+    
+    # Mock Embedding Port 등록 (테스트용)
+    from src.modules.search.application.ports.llm_port import EmbeddingPort
+    mock_embedding = Mock(spec=EmbeddingPort)
+    mock_embedding.create_embedding.return_value = [0.1] * 768  # 768차원 벡터
+    _container.register_instance(EmbeddingPort, mock_embedding)
+    
+    # Search Use Cases 등록
+    _container.register_factory(SearchDocumentsUseCase, lambda: SearchDocumentsUseCase(
+        vector_search_port=inject(VectorSearchPort),
+        embedding_port=inject(EmbeddingPort)
+    ))
+    _container.register_factory(GenerateAnswerUseCase, lambda: GenerateAnswerUseCase(
+        llm_service=inject(LLMPort)
+    ))
+    
+    # Ingest 모듈 의존성 등록
+    from src.modules.ingest.infrastructure.repositories.document_repository import DocumentRepository
+    from src.modules.ingest.application.services.document_service import DocumentService
+    
+    _container.register_factory(DocumentRepository, lambda: DocumentRepository(get_motor_database()))
+    _container.register_factory(DocumentService, lambda: DocumentService(
+        repository=inject(DocumentRepository)
+    ))
+    
+    logger.info("Dependencies setup completed")
+
+
+def register(interface: Type[T], implementation: Type[T] = None, factory: Callable[[], T] = None):
+    """의존성 등록 헬퍼 함수"""
+    if factory:
+        _container.register_factory(interface, factory)
+    elif implementation:
+        _container.register_singleton(interface, implementation)
+    else:
+        _container.register_singleton(interface, interface)

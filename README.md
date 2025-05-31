@@ -91,13 +91,102 @@ src/
 
 ```bash
 # 단위 테스트
-pytest tests/unit/
+pytest test/unit/
 
 # 통합 테스트
-pytest tests/integration/
+pytest test/integration/
 
 # 전체 테스트
 pytest
+```
+
+### 모듈별 테스트 구조
+
+#### 1. Core 모듈 테스트
+- **소스 코드**: `src/core/`
+- **테스트 파일**: `.clineignore/tests/test_core_*.py`
+  - `test_core_config.py` - 설정 관리 테스트
+  - `test_core_exceptions.py` - 예외 처리 테스트
+  - `test_core_dependencies.py` - 의존성 주입 테스트
+  - `test_core_logging.py` - 로깅 시스템 테스트
+
+#### 2. Infrastructure 모듈 테스트
+- **소스 코드**: `src/infrastructure/`
+- **테스트 파일**: `.clineignore/tests/test_infrastructure_*.py`
+  - `test_infrastructure_mongodb.py` - MongoDB 연결 테스트
+  - `test_infrastructure_qdrant.py` - Qdrant 벡터DB 테스트
+  - `test_infrastructure_kafka.py` - Kafka 메시징 테스트
+
+#### 3. Utils 모듈 테스트
+- **소스 코드**: `src/utils/`
+- **테스트 파일**: `.clineignore/tests/test_utils_*.py`
+  - `test_utils_id_generator.py` - ID 생성 유틸리티 테스트
+  - `test_utils_hash.py` - 해시 함수 테스트
+  - `test_utils_validators.py` - 검증 함수 테스트
+  - `test_utils_datetime.py` - 날짜/시간 유틸리티 테스트
+
+#### 4. Ingest 모듈 테스트
+- **소스 코드**: `src/modules/ingest/`
+- **테스트 파일**: `.clineignore/tests/test_ingest_*.py`
+  - `test_ingest_domain_entities.py` - 도메인 엔티티 테스트
+  - `test_ingest_infrastructure_document_repository.py` - 문서 저장소 테스트
+  - `test_ingest_application_document_service.py` - 문서 서비스 테스트
+  - `test_ingest_use_cases_parse_email.py` - 이메일 파싱 유즈케이스 테스트
+  - `test_ingest_use_cases_upload_file.py` - 파일 업로드 유즈케이스 테스트
+  - `test_ingest_use_cases_get_document_status.py` - 문서 상태 조회 유즈케이스 테스트
+
+#### 5. Process 모듈 테스트
+- **소스 코드**: `src/modules/process/`
+- **테스트 파일**: 
+  - `.clineignore/tests/test_process_domain_entities.py` - 도메인 엔티티 테스트
+  - `test/unit/test_process_use_cases_*.py` - 유즈케이스 테스트
+    - `test_process_use_cases_create_processing_job.py` - 처리 작업 생성
+    - `test_process_use_cases_extract_text.py` - 텍스트 추출
+    - `test_process_use_cases_create_chunks.py` - 청크 생성
+    - `test_process_use_cases_generate_embeddings.py` - 임베딩 생성
+    - `test_process_use_cases_deduplicate_chunks.py` - 중복 제거
+
+#### 6. Search 모듈 테스트
+- **소스 코드**: `src/modules/search/`
+- **테스트 파일**: `test/unit/test_search_*.py`
+  - `test_search_use_cases_search_documents.py` - 문서 검색 유즈케이스 테스트
+  - `test_search_use_cases_generate_answer.py` - 답변 생성 유즈케이스 테스트
+  - `test_search_infrastructure_vector_db.py` - 벡터DB 인프라 테스트
+
+#### 7. Monitor 모듈 테스트
+- **소스 코드**: `src/modules/monitor/`
+- **테스트 파일**: `test/unit/test_monitor_*.py`
+  - `test_monitor_domain_entities.py` - 도메인 엔티티 테스트
+  - `test_monitor_application_ports.py` - 애플리케이션 포트 테스트
+  - `test_monitor_application_services.py` - 애플리케이션 서비스 테스트
+  - `test_monitor_use_cases_collect_metrics.py` - 메트릭 수집 유즈케이스 테스트
+  - `test_monitor_infrastructure_adapters.py` - 인프라 어댑터 테스트
+  - `test_monitor_infrastructure_repositories.py` - 저장소 테스트
+  - `test_monitor_infrastructure_repositories_mongodb.py` - MongoDB 저장소 테스트
+
+#### 8. API 모듈 테스트
+- **소스 코드**: `src/api/`
+- **테스트 파일**: `test/unit/test_api_*.py`
+  - `test_api_v1_search.py` - 검색 API 테스트
+  - `test_api_v1_monitor.py` - 모니터링 API 테스트
+
+#### 9. 통합 테스트
+- **테스트 파일**: `test/integration/`
+  - `test_main_app.py` - 전체 애플리케이션 통합 테스트
+
+### 테스트 실행 방법
+
+```bash
+# 특정 모듈 테스트
+pytest test/unit/test_search_*.py  # 검색 모듈만
+pytest test/unit/test_monitor_*.py  # 모니터링 모듈만
+pytest .clineignore/tests/test_core_*.py  # 코어 모듈만
+
+# 커버리지 포함 테스트
+pytest --cov=src --cov-report=html
+
+# 특정 테스트 클래스 실행
+pytest test/unit/test_search_use_cases_search_documents.py::TestSearchDocuments
 ```
 
 ### 코드 품질 검사

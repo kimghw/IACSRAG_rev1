@@ -6,8 +6,24 @@ Health Check Port
 
 from abc import ABC, abstractmethod
 from typing import Dict, List, Optional, Any
+from dataclasses import dataclass
+from datetime import datetime
 
 from src.modules.monitor.domain.entities import HealthStatus, ComponentType
+
+
+@dataclass
+class HealthCheckResult:
+    """헬스체크 결과"""
+    is_healthy: bool
+    component: str
+    value: Optional[float] = None
+    message: Optional[str] = None
+    timestamp: datetime = None
+    
+    def __post_init__(self):
+        if self.timestamp is None:
+            self.timestamp = datetime.utcnow()
 
 
 class HealthCheckPort(ABC):

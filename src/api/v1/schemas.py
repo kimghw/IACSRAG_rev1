@@ -3,7 +3,7 @@ API v1 스키마 정의
 """
 
 from typing import List, Optional, Dict, Any
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, ConfigDict
 from uuid import UUID
 from datetime import datetime
 
@@ -16,8 +16,8 @@ class SearchRequest(BaseModel):
     filters: Optional[Dict[str, Any]] = Field(default=None, description="검색 필터")
     search_type: str = Field(default="hybrid", description="검색 타입 (vector, keyword, hybrid)")
     
-    class Config:
-        schema_extra = {
+    model_config = ConfigDict(
+        json_schema_extra={
             "example": {
                 "query": "Python 프로그래밍 기초",
                 "limit": 10,
@@ -29,6 +29,7 @@ class SearchRequest(BaseModel):
                 "search_type": "hybrid"
             }
         }
+    )
 
 
 class SearchResultItem(BaseModel):
@@ -39,8 +40,8 @@ class SearchResultItem(BaseModel):
     score: float = Field(..., description="유사도 점수", ge=0.0, le=1.0)
     metadata: Dict[str, Any] = Field(..., description="메타데이터")
     
-    class Config:
-        schema_extra = {
+    model_config = ConfigDict(
+        json_schema_extra={
             "example": {
                 "chunk_id": "550e8400-e29b-41d4-a716-446655440000",
                 "document_id": "550e8400-e29b-41d4-a716-446655440001",
@@ -55,6 +56,7 @@ class SearchResultItem(BaseModel):
                 }
             }
         }
+    )
 
 
 class SearchResponse(BaseModel):
@@ -65,8 +67,8 @@ class SearchResponse(BaseModel):
     search_time_ms: float = Field(..., description="검색 소요 시간 (밀리초)")
     search_type: str = Field(..., description="사용된 검색 타입")
     
-    class Config:
-        schema_extra = {
+    model_config = ConfigDict(
+        json_schema_extra={
             "example": {
                 "query": "Python 프로그래밍 기초",
                 "results": [
@@ -88,6 +90,7 @@ class SearchResponse(BaseModel):
                 "search_type": "hybrid"
             }
         }
+    )
 
 
 class AnswerRequest(BaseModel):
@@ -98,8 +101,8 @@ class AnswerRequest(BaseModel):
     temperature: float = Field(default=0.7, description="답변 생성 온도", ge=0.0, le=2.0)
     max_tokens: int = Field(default=500, description="최대 토큰 수", ge=50, le=2000)
     
-    class Config:
-        schema_extra = {
+    model_config = ConfigDict(
+        json_schema_extra={
             "example": {
                 "question": "Python에서 리스트와 튜플의 차이점은 무엇인가요?",
                 "context_limit": 5,
@@ -110,6 +113,7 @@ class AnswerRequest(BaseModel):
                 "max_tokens": 500
             }
         }
+    )
 
 
 class AnswerResponse(BaseModel):
@@ -120,8 +124,8 @@ class AnswerResponse(BaseModel):
     confidence: float = Field(..., description="답변 신뢰도", ge=0.0, le=1.0)
     generation_time_ms: float = Field(..., description="답변 생성 소요 시간 (밀리초)")
     
-    class Config:
-        schema_extra = {
+    model_config = ConfigDict(
+        json_schema_extra={
             "example": {
                 "question": "Python에서 리스트와 튜플의 차이점은 무엇인가요?",
                 "answer": "Python에서 리스트와 튜플의 주요 차이점은 다음과 같습니다:\n\n1. **가변성**: 리스트는 가변(mutable)이고 튜플은 불변(immutable)입니다.\n2. **성능**: 튜플이 리스트보다 메모리 효율적이고 빠릅니다.\n3. **사용 목적**: 리스트는 동적 데이터에, 튜플은 고정 데이터에 적합합니다.",
@@ -142,18 +146,20 @@ class AnswerResponse(BaseModel):
                 "generation_time_ms": 1250.0
             }
         }
+    )
 
 
 class ChunkDetailRequest(BaseModel):
     """청크 상세 조회 요청 스키마"""
     chunk_id: UUID = Field(..., description="청크 ID")
     
-    class Config:
-        schema_extra = {
+    model_config = ConfigDict(
+        json_schema_extra={
             "example": {
                 "chunk_id": "550e8400-e29b-41d4-a716-446655440000"
             }
         }
+    )
 
 
 class DocumentChunksRequest(BaseModel):
@@ -162,14 +168,15 @@ class DocumentChunksRequest(BaseModel):
     page: int = Field(default=1, description="페이지 번호", ge=1)
     size: int = Field(default=20, description="페이지 크기", ge=1, le=100)
     
-    class Config:
-        schema_extra = {
+    model_config = ConfigDict(
+        json_schema_extra={
             "example": {
                 "document_id": "550e8400-e29b-41d4-a716-446655440001",
                 "page": 1,
                 "size": 20
             }
         }
+    )
 
 
 class DocumentChunksResponse(BaseModel):
@@ -181,8 +188,8 @@ class DocumentChunksResponse(BaseModel):
     size: int = Field(..., description="페이지 크기")
     total_pages: int = Field(..., description="총 페이지 수")
     
-    class Config:
-        schema_extra = {
+    model_config = ConfigDict(
+        json_schema_extra={
             "example": {
                 "document_id": "550e8400-e29b-41d4-a716-446655440001",
                 "chunks": [
@@ -204,6 +211,7 @@ class DocumentChunksResponse(BaseModel):
                 "total_pages": 3
             }
         }
+    )
 
 
 class HealthCheckResponse(BaseModel):
@@ -213,8 +221,8 @@ class HealthCheckResponse(BaseModel):
     version: str = Field(..., description="서비스 버전")
     components: Dict[str, Dict[str, Any]] = Field(..., description="컴포넌트 상태")
     
-    class Config:
-        schema_extra = {
+    model_config = ConfigDict(
+        json_schema_extra={
             "example": {
                 "status": "healthy",
                 "timestamp": "2024-01-01T12:00:00Z",
@@ -231,6 +239,7 @@ class HealthCheckResponse(BaseModel):
                 }
             }
         }
+    )
 
 
 class ErrorResponse(BaseModel):
@@ -240,8 +249,8 @@ class ErrorResponse(BaseModel):
     details: Optional[Dict[str, Any]] = Field(default=None, description="에러 상세 정보")
     timestamp: datetime = Field(..., description="에러 발생 시간")
     
-    class Config:
-        schema_extra = {
+    model_config = ConfigDict(
+        json_schema_extra={
             "example": {
                 "error": "ValidationError",
                 "message": "검색 질의는 필수입니다.",
@@ -252,3 +261,4 @@ class ErrorResponse(BaseModel):
                 "timestamp": "2024-01-01T12:00:00Z"
             }
         }
+    )

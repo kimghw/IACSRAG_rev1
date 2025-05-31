@@ -305,3 +305,41 @@ def handle_validation_error(
         error_code="VALIDATION_ERROR",
         details=details
     )
+
+
+
+class NotificationError(BaseApplicationError):
+    """알림 관련 오류"""
+    pass
+
+
+class NotificationSendError(NotificationError):
+    """알림 전송 오류"""
+    pass
+
+
+class NotificationConfigError(NotificationError, ConfigurationError):
+    """알림 설정 오류"""
+    pass
+
+
+
+class HealthCheckError(BaseApplicationError):
+    """헬스체크 관련 오류"""
+    pass
+
+
+class HealthCheckFailedError(HealthCheckError):
+    """헬스체크 실패 오류"""
+    pass
+
+
+class HealthCheckTimeoutError(HealthCheckError):
+    """헬스체크 타임아웃 오류"""
+    pass
+
+
+
+class EmbeddingServiceError(EmbeddingError):
+    """임베딩 서비스 오류"""
+    pass

@@ -39,6 +39,7 @@ class AlertStatus(str, Enum):
 
 class ComponentType(str, Enum):
     """시스템 컴포넌트 타입"""
+    SYSTEM = "system"
     INGEST = "ingest"
     PROCESS = "process"
     SEARCH = "search"
@@ -46,6 +47,8 @@ class ComponentType(str, Enum):
     LLM = "llm"
     DATABASE = "database"
     MESSAGING = "messaging"
+    MESSAGE_QUEUE = "message_queue"
+    MONITOR = "monitor"
 
 
 class ProcessingStatus(str, Enum):
@@ -235,15 +238,29 @@ class ProcessingStatistics:
         self.updated_at = utc_now()
 
 
+class HealthStatusEnum(str, Enum):
+    """건강 상태 열거형"""
+    HEALTHY = "healthy"
+    DEGRADED = "degraded"
+    UNHEALTHY = "unhealthy"
+    UNKNOWN = "unknown"
+
+
 @dataclass
 class HealthStatus:
     """시스템 건강 상태"""
     component: ComponentType
-    status: str  # "healthy", "degraded", "unhealthy"
+    status: HealthStatusEnum
     message: str
     last_check: datetime
     response_time_ms: Optional[float] = None
     error_details: Optional[Dict[str, Any]] = None
+    
+    # 하위 호환성을 위한 클래스 속성
+    HEALTHY = HealthStatusEnum.HEALTHY
+    DEGRADED = HealthStatusEnum.DEGRADED
+    UNHEALTHY = HealthStatusEnum.UNHEALTHY
+    UNKNOWN = HealthStatusEnum.UNKNOWN
     
     @classmethod
     def healthy(
@@ -255,7 +272,7 @@ class HealthStatus:
         """건강한 상태 생성"""
         return cls(
             component=component,
-            status="healthy",
+            status=HealthStatusEnum.HEALTHY,
             message=message,
             last_check=utc_now(),
             response_time_ms=response_time_ms
@@ -272,7 +289,7 @@ class HealthStatus:
         """성능 저하 상태 생성"""
         return cls(
             component=component,
-            status="degraded",
+            status=HealthStatusEnum.DEGRADED,
             message=message,
             last_check=utc_now(),
             response_time_ms=response_time_ms,
@@ -289,7 +306,7 @@ class HealthStatus:
         """비정상 상태 생성"""
         return cls(
             component=component,
-            status="unhealthy",
+            status=HealthStatusEnum.UNHEALTHY,
             message=message,
             last_check=utc_now(),
             error_details=error_details
@@ -297,15 +314,15 @@ class HealthStatus:
     
     def is_healthy(self) -> bool:
         """건강 상태 확인"""
-        return self.status == "healthy"
+        return self.status == HealthStatusEnum.HEALTHY
     
     def is_degraded(self) -> bool:
         """성능 저하 상태 확인"""
-        return self.status == "degraded"
+        return self.status == HealthStatusEnum.DEGRADED
     
     def is_unhealthy(self) -> bool:
         """비정상 상태 확인"""
-        return self.status == "unhealthy"
+        return self.status == HealthStatusEnum.UNHEALTHY
 
 
 @dataclass
@@ -410,7 +427,10 @@ class AlertRule:
         condition: str,
         threshold: float,
         severity: str,
-        description: str = ""
+        description: str = "",
+        enabled: bool = True,
+        notification_channels: List[str] = None,
+        cooldown_minutes: int = 5
     ) -> "AlertRule":
         """새로운 알림 규칙 생성"""
         return cls(
@@ -421,7 +441,10 @@ class AlertRule:
             condition=condition,
             threshold=threshold,
             severity=AlertSeverity(severity),
-            message=description or f"{name}: {metric_name} {condition} {threshold}"
+            message=description or f"{name}: {metric_name} {condition} {threshold}",
+            enabled=enabled,
+            notification_channels=notification_channels or [],
+            cooldown_minutes=cooldown_minutes
         )
     
     def evaluate(self, metric_value: float) -> bool:
@@ -449,6 +472,16 @@ class AlertRule:
     def toggle_enabled(self) -> None:
         """활성화 상태 토글"""
         self.enabled = not self.enabled
+    
+    def update_last_triggered(self, timestamp: datetime) -> None:
+        """마지막 트리거 시간 업데이트"""
+        self.last_triggered_at = timestamp
+        self.updated_at = get_current_utc_datetime()
+    
+    @property
+    def last_triggered(self) -> Optional[datetime]:
+        """하위 호환성을 위한 속성"""
+        return self.last_triggered_at
 
 
 @dataclass
@@ -462,6 +495,7 @@ class Alert:
     status: AlertStatus
     message: str
     metric_value: float
+    current_value: float  # 현재 메트릭 값
     threshold: float
     triggered_at: datetime = field(default_factory=get_current_utc_datetime)
     resolved_at: Optional[datetime] = None
@@ -473,8 +507,9 @@ class Alert:
     def create(
         cls,
         rule: AlertRule,
-        metric_value: float,
-        message: str
+        current_value: float,
+        message: str,
+        timestamp: Optional[datetime] = None
     ) -> "Alert":
         """새로운 알림 생성"""
         return cls(
@@ -485,7 +520,8 @@ class Alert:
             severity=AlertSeverity(rule.severity),
             status=AlertStatus.ACTIVE,
             message=message,
-            metric_value=metric_value,
+            metric_value=current_value,
+            current_value=current_value,  # 현재 값도 설정
             threshold=rule.threshold
         )
     

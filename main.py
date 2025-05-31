@@ -25,7 +25,7 @@ from src.core.exceptions import (
     ExternalServiceError
 )
 from src.core.logging import setup_logging
-from src.core.dependencies import get_container
+from src.core.dependencies import get_container, setup_dependencies
 
 
 # 설정 로드
@@ -34,78 +34,6 @@ settings = get_settings()
 # 로깅 설정
 setup_logging()
 logger = logging.getLogger(__name__)
-
-
-def setup_dependencies():
-    """의존성 주입 설정"""
-    container = get_container()
-    
-    # Infrastructure 레이어 등록
-    from src.infrastructure.database.mongodb import MongoDBClient
-    from src.infrastructure.vectordb.qdrant_client import QdrantClient
-    from src.infrastructure.messaging.kafka_client import KafkaManager
-    
-    container.register_singleton(MongoDBClient, MongoDBClient)
-    container.register_singleton(QdrantClient, QdrantClient)
-    container.register_singleton(KafkaManager, KafkaManager)
-    
-    # Search 모듈 등록
-    from src.modules.search.application.use_cases.search_documents import SearchDocumentsUseCase
-    from src.modules.search.application.use_cases.generate_answer import GenerateAnswerUseCase
-    from src.modules.search.infrastructure.vector_db import VectorDatabase
-    from src.modules.search.application.ports.vector_search_port import VectorSearchPort
-    from src.modules.search.application.ports.llm_port import EmbeddingPort, LLMPort
-    
-    # Port 구현체 등록 (VectorDatabase가 VectorSearchPort를 구현)
-    container.register_transient(VectorSearchPort, VectorDatabase)
-    container.register_transient(VectorDatabase, VectorDatabase)
-    
-    # Mock 구현체 등록 (실제 구현체가 없는 경우)
-    from unittest.mock import Mock
-    container.register_transient(EmbeddingPort, lambda: Mock(spec=EmbeddingPort))
-    container.register_transient(LLMPort, lambda: Mock(spec=LLMPort))
-    
-    container.register_transient(SearchDocumentsUseCase, SearchDocumentsUseCase)
-    container.register_transient(GenerateAnswerUseCase, GenerateAnswerUseCase)
-    
-    # Monitor 모듈 등록
-    from src.modules.monitor.application.services.monitor_service import MonitorService
-    from src.modules.monitor.application.use_cases.collect_metrics import CollectMetricsUseCase, CollectSystemMetricsUseCase
-    from src.modules.monitor.application.use_cases.manage_alerts import CreateAlertRuleUseCase, ProcessMetricAlertUseCase
-    from src.modules.monitor.application.use_cases.check_health import CheckComponentHealthUseCase, PerformHealthCheckUseCase
-    from src.modules.monitor.application.ports.metric_repository import MetricRepositoryPort
-    from src.modules.monitor.application.ports.alert_repository import AlertRepositoryPort
-    from src.modules.monitor.application.ports.health_check_port import HealthCheckPort
-    from src.modules.monitor.application.ports.notification_port import NotificationPort
-    from src.modules.monitor.infrastructure.repositories.mongodb_metric_repository import MongoDBMetricRepository
-    from src.modules.monitor.infrastructure.repositories.mongodb_alert_repository import MongoDBAlertRepository
-    
-    # Monitor Port 구현체 등록
-    from src.modules.monitor.infrastructure.adapters.email_notification_adapter import EmailNotificationAdapter
-    from src.modules.monitor.infrastructure.adapters.system_health_check_adapter import SystemHealthCheckAdapter
-    
-    container.register_transient(MetricRepositoryPort, MongoDBMetricRepository)
-    container.register_transient(AlertRepositoryPort, MongoDBAlertRepository)
-    container.register_transient(HealthCheckPort, SystemHealthCheckAdapter)
-    container.register_transient(NotificationPort, EmailNotificationAdapter)
-    
-    container.register_transient(MonitorService, MonitorService)
-    container.register_transient(CollectMetricsUseCase, CollectMetricsUseCase)
-    container.register_transient(CollectSystemMetricsUseCase, CollectSystemMetricsUseCase)
-    container.register_transient(CreateAlertRuleUseCase, CreateAlertRuleUseCase)
-    container.register_transient(ProcessMetricAlertUseCase, ProcessMetricAlertUseCase)
-    container.register_transient(CheckComponentHealthUseCase, CheckComponentHealthUseCase)
-    container.register_transient(PerformHealthCheckUseCase, PerformHealthCheckUseCase)
-    
-    # Ingest 모듈 등록
-    from src.modules.ingest.application.services.document_service import DocumentService
-    from src.modules.ingest.infrastructure.repositories.document_repository import DocumentRepository
-    
-    container.register_transient(DocumentService, DocumentService)
-    container.register_transient(DocumentRepository, DocumentRepository)
-    
-    logger.info("Dependencies registered successfully")
-
 
 # 의존성 설정
 setup_dependencies()
