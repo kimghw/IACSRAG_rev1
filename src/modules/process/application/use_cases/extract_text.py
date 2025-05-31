@@ -104,14 +104,7 @@ class ExtractTextUseCase:
                 raise DocumentProcessingError("No text could be extracted from the document")
             
             # 6. 작업 완료 처리
-            job.complete_processing(
-                result_data={
-                    "extracted_text": extraction_result.text,
-                    "metadata": extraction_result.metadata,
-                    "text_length": len(extraction_result.text),
-                    "page_count": extraction_result.page_count
-                }
-            )
+            job.complete_processing()
             await self.job_repository.save(job)
             
             # 7. 이벤트 발행

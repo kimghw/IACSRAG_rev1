@@ -148,6 +148,20 @@ def generate_content_hash(content: str) -> str:
     return hash_text(normalized_content, "sha256")
 
 
+def calculate_content_hash(content: str) -> str:
+    """
+    콘텐츠 해시를 계산합니다.
+    generate_content_hash의 별칭 함수입니다.
+    
+    Args:
+        content: 해싱할 콘텐츠
+        
+    Returns:
+        str: SHA-256 해시값
+    """
+    return generate_content_hash(content)
+
+
 def generate_chunk_hash(text: str, metadata: dict = None) -> str:
     """
     텍스트 청크의 해시를 생성합니다.

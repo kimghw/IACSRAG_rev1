@@ -383,6 +383,17 @@ class EventPublisher(ABC):
     ) -> None:
         """임베딩 생성 이벤트 발행"""
         pass
+    
+    @abstractmethod
+    async def publish_chunks_deduplicated(
+        self,
+        document_id: UUID,
+        user_id: UUID,
+        removed_chunk_count: int,
+        duplicate_groups_count: int
+    ) -> None:
+        """청크 중복 제거 완료 이벤트 발행"""
+        pass
 
 
 class NotificationService(ABC):

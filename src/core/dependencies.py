@@ -306,3 +306,70 @@ class DependencyScope:
             self._scoped_instances[key] = self.container.get(interface)
         
         return self._scoped_instances[key]
+
+
+# FastAPI 의존성 함수들
+def get_vector_database():
+    """Vector Database 의존성 반환"""
+    from src.modules.search.infrastructure.vector_db import VectorDatabase
+    return inject(VectorDatabase)
+
+
+def get_search_use_case():
+    """Search Use Case 의존성 반환"""
+    from src.modules.search.application.use_cases.search_documents import SearchDocumentsUseCase
+    return inject(SearchDocumentsUseCase)
+
+
+def get_answer_use_case():
+    """Answer Use Case 의존성 반환"""
+    from src.modules.search.application.use_cases.generate_answer import GenerateAnswerUseCase
+    return inject(GenerateAnswerUseCase)
+
+
+def get_document_service():
+    """Document Service 의존성 반환"""
+    from src.modules.ingest.application.services.document_service import DocumentService
+    return inject(DocumentService)
+
+
+def get_document_repository():
+    """Document Repository 의존성 반환"""
+    from src.modules.ingest.infrastructure.repositories.document_repository import DocumentRepository
+    return inject(DocumentRepository)
+
+
+def get_mongodb_client():
+    """MongoDB Client 의존성 반환"""
+    from src.infrastructure.database.mongodb import MongoDBClient
+    return inject(MongoDBClient)
+
+
+def get_qdrant_client():
+    """Qdrant Client 의존성 반환"""
+    from src.infrastructure.vectordb.qdrant_client import QdrantClient
+    return inject(QdrantClient)
+
+
+def get_kafka_client():
+    """Kafka Client 의존성 반환"""
+    from src.infrastructure.messaging.kafka_client import KafkaClient
+    return inject(KafkaClient)
+
+
+def get_monitor_service():
+    """Monitor Service 의존성 반환"""
+    from src.modules.monitor.application.services.monitor_service import MonitorService
+    return inject(MonitorService)
+
+
+def get_database():
+    """Database 의존성 반환"""
+    from src.infrastructure.database.mongodb import MongoDBClient
+    return inject(MongoDBClient)
+
+
+def get_vector_db():
+    """Vector Database 의존성 반환"""
+    from src.infrastructure.vectordb.qdrant_client import QdrantClient
+    return inject(QdrantClient)

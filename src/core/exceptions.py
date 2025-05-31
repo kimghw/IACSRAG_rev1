@@ -59,6 +59,11 @@ class BusinessRuleViolationError(BaseApplicationError):
     pass
 
 
+class BusinessLogicError(BaseApplicationError):
+    """비즈니스 로직 오류"""
+    pass
+
+
 class ExternalServiceError(BaseApplicationError):
     """외부 서비스 오류"""
     pass
@@ -138,6 +143,11 @@ class VectorSearchError(VectorStoreError):
 
 class DatabaseError(BaseApplicationError):
     """데이터베이스 오류"""
+    pass
+
+
+class RepositoryError(BaseApplicationError):
+    """리포지토리 계층 오류"""
     pass
 
 

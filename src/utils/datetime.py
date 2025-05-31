@@ -30,6 +30,16 @@ def get_current_utc_datetime() -> datetime:
     return datetime.now(timezone.utc)
 
 
+def get_current_utc_time() -> datetime:
+    """
+    현재 UTC 시간을 반환합니다. (get_current_utc_datetime의 별칭)
+    
+    Returns:
+        datetime: UTC 시간대의 현재 시간
+    """
+    return datetime.now(timezone.utc)
+
+
 def get_current_kst_datetime() -> datetime:
     """
     현재 KST 시간을 반환합니다.

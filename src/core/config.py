@@ -23,6 +23,11 @@ class Settings(BaseSettings):
     app_version: str = Field(default="0.1.0", alias="APP_VERSION")
     debug: bool = Field(default=False, alias="DEBUG")
     log_level: str = Field(default="INFO", alias="LOG_LEVEL")
+    environment: str = Field(default="development", alias="ENVIRONMENT")
+    
+    # CORS Settings
+    allowed_origins: List[str] = Field(default=["*"], alias="ALLOWED_ORIGINS")
+    allowed_hosts: List[str] = Field(default=["*"], alias="ALLOWED_HOSTS")
     
     # API Settings
     api_v1_prefix: str = Field(default="/api/v1", alias="API_V1_PREFIX")
@@ -106,3 +111,8 @@ class Settings(BaseSettings):
 
 # 전역 설정 인스턴스
 settings = Settings()
+
+
+def get_settings() -> Settings:
+    """설정 인스턴스 반환"""
+    return settings

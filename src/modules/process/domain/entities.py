@@ -27,6 +27,7 @@ class ProcessingType(Enum):
     TEXT_EXTRACTION = "text_extraction"    # 텍스트 추출
     CHUNKING = "chunking"                  # 청킹
     EMBEDDING = "embedding"                # 임베딩 생성
+    DEDUPLICATION = "deduplication"        # 중복 제거
     INDEXING = "indexing"                  # 인덱싱
     FULL_PIPELINE = "full_pipeline"        # 전체 파이프라인
 
@@ -171,6 +172,26 @@ class ProcessingJob:
             self.status == ProcessingStatus.FAILED and 
             self.retry_count < self.max_retries
         )
+    
+    def fail_with_retry(self, error_message: str) -> None:
+        """재시도와 함께 실패 처리"""
+        if self.status not in [ProcessingStatus.PROCESSING, ProcessingStatus.PENDING]:
+            raise ValueError(f"Cannot fail processing job in status: {self.status}")
+        
+        self.retry_count += 1
+        self.status = ProcessingStatus.FAILED
+        self.error_message = error_message
+        self.updated_at = utc_now()
+    
+    def fail_permanently(self, error_message: str) -> None:
+        """영구적으로 실패 처리 (재시도 불가)"""
+        if self.status not in [ProcessingStatus.PROCESSING, ProcessingStatus.PENDING, ProcessingStatus.FAILED]:
+            raise ValueError(f"Cannot permanently fail processing job in status: {self.status}")
+        
+        self.status = ProcessingStatus.FAILED
+        self.error_message = error_message
+        self.retry_count = self.max_retries  # 최대 재시도 횟수로 설정하여 재시도 불가능하게 만듦
+        self.updated_at = utc_now()
     
     def is_terminal_status(self) -> bool:
         """종료 상태 여부"""
